@@ -2,7 +2,7 @@
 /* eslint-disable @next/next/no-html-link-for-pages */
 
 import { createEmptyCard, fsrs, Rating, State, type Card } from "ts-fsrs";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 type VocabularySeed = { sourceNumber: number; front: string; back: string };
 type StoredCard = VocabularySeed & {
@@ -78,6 +78,9 @@ export function StudyApp({ mode = "home" }: { mode?: "home" | "study" }) {
   const [encouragement, setEncouragement] = useState(ENCOURAGEMENTS[0]);
   const [activeDay, setActiveDay] = useState<string | null>(null);
   const [dailyNewLimit, setDailyNewLimit] = useState(DEFAULT_DAILY_NEW_CARD_LIMIT);
+  const [backupMessage, setBackupMessage] = useState<string | null>(null);
+  const [isRestoring, setIsRestoring] = useState(false);
+  const backupInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -220,6 +223,48 @@ export function StudyApp({ mode = "home" }: { mode?: "home" | "study" }) {
     }).catch(() => setSaveError(true));
   }
 
+  async function downloadBackup() {
+    setBackupMessage(null);
+    try {
+      const response = await fetch("/api/backup", { headers: deviceHeaders(getDeviceId()) });
+      if (!response.ok) throw new Error("backup download failed");
+      const backup = await response.json();
+      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `tangodots-backup-${new Date().toISOString().slice(0, 10)}.json`;
+      link.click();
+      URL.revokeObjectURL(url);
+      setBackupMessage("バックアップをダウンロードしました。iCloud DriveやGoogle Driveなどへ保管してください。");
+    } catch {
+      setBackupMessage("バックアップを作成できませんでした。もう一度お試しください。");
+    }
+  }
+
+  async function restoreBackup(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    if (!window.confirm("現在のこの端末の学習履歴を、バックアップの内容に置き換えます。よろしいですか？")) return;
+
+    setIsRestoring(true);
+    setBackupMessage(null);
+    try {
+      const backup = JSON.parse(await file.text());
+      const response = await fetch("/api/backup", {
+        method: "POST",
+        headers: { "content-type": "application/json", ...deviceHeaders(getDeviceId()) },
+        body: JSON.stringify(backup),
+      });
+      if (!response.ok) throw new Error("backup restore failed");
+      window.location.reload();
+    } catch {
+      setBackupMessage("復元できませんでした。TangoDotsから出力したJSONファイルを選択してください。");
+      setIsRestoring(false);
+    }
+  }
+
   if (!loaded) return <main className="app-shell"><p className="muted">単語を読み込んでいます…</p></main>;
 
   return (
@@ -272,6 +317,18 @@ export function StudyApp({ mode = "home" }: { mode?: "home" | "study" }) {
         </div>
         <a className="start-button" href="/study">学習をはじめる</a>
       </section>
+      <section className="backup-card" aria-labelledby="backup-title">
+        <div>
+          <h2 id="backup-title">データのバックアップ</h2>
+          <p>学習履歴とFSRSの復習予定をJSONファイルに保存できます。ブラウザのデータを削除する前や、端末を変える前に保管してください。</p>
+        </div>
+        <div className="backup-actions">
+          <button type="button" className="backup-button" onClick={downloadBackup}>バックアップを保存</button>
+          <button type="button" className="backup-button backup-button-secondary" onClick={() => backupInputRef.current?.click()} disabled={isRestoring}>{isRestoring ? "復元中…" : "バックアップを復元"}</button>
+          <input ref={backupInputRef} hidden type="file" accept="application/json,.json" onChange={restoreBackup} />
+        </div>
+        {backupMessage && <p className="backup-message" role="status">{backupMessage}</p>}
+      </section>
       </>}
       {mode === "study" && <section className="study-progress" aria-label="今日の学習進捗">
         <div><span>今日の進捗</span><strong>{todayCompletedCount} / {todaySetCount} 語</strong></div>
@@ -287,7 +344,7 @@ export function StudyApp({ mode = "home" }: { mode?: "home" | "study" }) {
         </div></> : <button className="reveal" onClick={() => setRevealed(true)}>答えを見る</button>}
       </section> : <section className="complete"><h2>今日の学習は完了です</h2><p>{reviewCount > 0 ? "復習を完了してください。" : `今日の新規 ${dailyNewLimit} 語を完了しました。また明日。`}</p><a className="back-link complete-link" href="/">記録を見る</a></section>)}
       {mode === "home" && <>
-        <p className="privacy">学習履歴はCloudflare D1に保存されます。{saveError ? " 保存に失敗しました。ページを再読み込みして再試行してください。" : ""}</p>
+        <p className="privacy">学習データはこのブラウザに紐づきます。{saveError ? " 保存に失敗しました。ページを再読み込みして再試行してください。" : ""}</p>
         <footer className="site-footer">© 2026 Kade_6174. All rights reserved.</footer>
       </>}
     </main>
