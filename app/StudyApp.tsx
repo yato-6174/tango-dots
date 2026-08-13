@@ -1,8 +1,8 @@
 "use client";
+/* eslint-disable @next/next/no-html-link-for-pages */
 
 import { createEmptyCard, fsrs, Rating, State, type Card } from "ts-fsrs";
 import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
 
 type VocabularySeed = { sourceNumber: number; front: string; back: string };
 type StoredCard = VocabularySeed & {
@@ -205,7 +205,7 @@ export function StudyApp({ mode = "home" }: { mode?: "home" | "study" }) {
 
   return (
     <main className="app-shell">
-      <header className="site-header"><Link className="brand" href="/">TangoDots</Link>{mode === "study" && <Link className="back-link" href="/">記録へ戻る</Link>}</header>
+      <header className="site-header"><a className="brand" href="/">TangoDots</a>{mode === "study" && <a className="back-link" href="/">記録へ戻る</a>}</header>
       {mode === "home" && <>
       <section className="summary">
         <p className="eyebrow">今日の学習</p>
@@ -220,7 +220,7 @@ export function StudyApp({ mode = "home" }: { mode?: "home" | "study" }) {
             const dayKey = day.date.toISOString();
             const isActive = activeDay === dayKey;
             const label = `${day.date.toLocaleDateString("ja-JP", { month: "long", day: "numeric", weekday: "short" })}: ${day.count}語`;
-            return <span className="dot-wrap" key={dayKey}>
+            return <span className={`dot-wrap ${isActive ? "is-active" : ""}`} key={dayKey}>
               <button
                 type="button"
                 className={`dot-button dot level-${activityLevel(day.count)}`}
@@ -237,8 +237,13 @@ export function StudyApp({ mode = "home" }: { mode?: "home" | "study" }) {
         <small>直近91日</small>
       </section>
       <section className="start-card">
-        <div><h2>今日のセット</h2><p>{reviewCount > 0 ? `復習 ${reviewCount} 枚を優先して始めましょう。` : `新規をあと ${remainingNewSlots} 枚まで学習できます。`}</p></div>
-        <Link className="start-button" href="/study">学習をはじめる</Link>
+        <div className="start-card-copy"><h2>今日のセット</h2><p>{reviewCount > 0 ? `復習 ${reviewCount} 枚を優先して始めましょう。` : `新規の単語をあと ${remainingNewSlots} 個まで学習できます。`}</p>
+          <div className="daily-progress" role="progressbar" aria-label="今日の新規単語の進捗" aria-valuemin={0} aria-valuemax={DAILY_NEW_CARD_LIMIT} aria-valuenow={introducedToday}>
+            <span className="daily-progress-bar" style={{ width: `${(introducedToday / DAILY_NEW_CARD_LIMIT) * 100}%` }} />
+          </div>
+          <small>{introducedToday} / {DAILY_NEW_CARD_LIMIT} 個</small>
+        </div>
+        <a className="start-button" href="/study">学習をはじめる</a>
       </section>
       </>}
       {mode === "study" && (current ? <section className="study-card" aria-live="polite">
@@ -249,7 +254,7 @@ export function StudyApp({ mode = "home" }: { mode?: "home" | "study" }) {
             <span>{ratingLabels[rating]}</span><small>{preview ? formatInterval(preview[rating].card.due) : ""}</small>
           </button>)}
         </div></> : <button className="reveal" onClick={() => setRevealed(true)}>答えを見る</button>}
-      </section> : <section className="complete"><h2>今日の学習は完了です</h2><p>{reviewCount > 0 ? "復習を完了してください。" : `今日の新規 ${DAILY_NEW_CARD_LIMIT} 枚を完了しました。また明日。`}</p><Link className="back-link complete-link" href="/">記録を見る</Link></section>)}
+      </section> : <section className="complete"><h2>今日の学習は完了です</h2><p>{reviewCount > 0 ? "復習を完了してください。" : `今日の新規 ${DAILY_NEW_CARD_LIMIT} 枚を完了しました。また明日。`}</p><a className="back-link complete-link" href="/">記録を見る</a></section>)}
       <p className="privacy">学習履歴はCloudflare D1に保存されます。{saveError ? " 保存に失敗しました。ページを再読み込みして再試行してください。" : ""}</p>
       <footer className="site-footer">© 2026 Kade_6174. All rights reserved.</footer>
     </main>
