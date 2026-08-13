@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { headers } from "next/headers";
+import { GoogleAnalytics } from "./GoogleAnalytics";
 import "./globals.css";
 
 export async function generateMetadata(): Promise<Metadata> {
@@ -21,14 +22,20 @@ export async function generateMetadata(): Promise<Metadata> {
   };
 }
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const host = (await headers()).get("host")?.split(":")[0];
+  const isPublicSite = host === "tangodots.yato-lab.com";
+
   return (
     <html lang="ja">
-      <body>{children}</body>
+      <body>
+        {isPublicSite && <GoogleAnalytics />}
+        {children}
+      </body>
     </html>
   );
 }

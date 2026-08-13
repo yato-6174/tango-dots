@@ -37,7 +37,7 @@ FSRS（Free Spaced Repetition Scheduler）を使い、英単語を少量ずつ�
 
 ## 匿名の利用統計
 
-サービス改善のため、Cloudflare Workers Analytics Engineで匿名の集計を行います。ホーム・学習画面の開始数、滞在時間、4種類の評価の選択数、単語数設定の変更、バックアップ操作、任意で送信された年代区分だけを集計します。単語・訳語・カードID・端末識別子・IPアドレス・メールアドレス・正確な年齢は分析データに含めません。運営向けの確認方法は [docs/analytics.md](docs/analytics.md) を参照してください。
+サービス改善のため、Cloudflare Workers Analytics Engine と Google Analytics 4 で匿名の集計を行います。Google Analytics ではページ閲覧・滞在時間などの利用状況のみを計測し、IPアドレスの匿名化、Googleシグナル・広告パーソナライズの無効化を設定しています。Cloudflare側ではホーム・学習画面の開始数、4種類の評価の選択数、単語数設定の変更、バックアップ操作、任意で送信された年代区分だけを集計します。単語・訳語・カードID・端末識別子・IPアドレス・メールアドレス・正確な年齢は分析データに含めません。運営向けの確認方法は [docs/analytics.md](docs/analytics.md) を参照してください。
 
 ## 開発
 
