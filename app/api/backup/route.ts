@@ -1,4 +1,5 @@
 import { env } from "cloudflare:workers";
+import { recordAnalytics } from "../analytics";
 
 const DEVICE_ID_HEADER = "x-tangodots-device-id";
 const VALID_DEVICE_ID = /^[a-zA-Z0-9-]{16,80}$/;
@@ -54,6 +55,7 @@ export async function GET(request: Request) {
     env.DB.prepare("SELECT daily_new_limit FROM user_settings WHERE device_id = ?").bind(deviceId),
   ]);
   const setting = settings.results[0] as { daily_new_limit?: number } | undefined;
+  recordAnalytics("backup_downloaded");
 
   return Response.json({
     version: 1,
@@ -92,6 +94,7 @@ export async function POST(request: Request) {
   for (let index = 0; index < statements.length; index += STATEMENTS_PER_BATCH) {
     await env.DB.batch(statements.slice(index, index + STATEMENTS_PER_BATCH));
   }
+  recordAnalytics("backup_restored");
 
   return Response.json({ ok: true });
 }

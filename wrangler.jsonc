@@ -14,5 +14,11 @@
       "database_id": "3fff70fc-0713-4683-9b20-0e12cb8e929c",
       "migrations_dir": "migrations"
     }
+  ],
+  "analytics_engine_datasets": [
+    {
+      "binding": "TANGODOTS_ANALYTICS",
+      "dataset": "tangodots_usage"
+    }
   ]
 }

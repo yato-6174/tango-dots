@@ -16,6 +16,7 @@ type SerializedCard = Omit<Card, "due" | "last_review"> & {
 type ReviewLog = { cardId: number; reviewedAt: string; rating: Rating };
 
 const DEVICE_ID_KEY = "tangodots.device-id.v1";
+const AGE_SURVEY_DONE_KEY = "tangodots.age-survey-done.v1";
 const DEFAULT_DAILY_NEW_CARD_LIMIT = 50;
 const DAILY_NEW_CARD_LIMITS = Array.from({ length: 19 }, (_, index) => 10 + index * 5);
 const ENCOURAGEMENTS = [
@@ -80,6 +81,8 @@ export function StudyApp({ mode = "home" }: { mode?: "home" | "study" }) {
   const [dailyNewLimit, setDailyNewLimit] = useState(DEFAULT_DAILY_NEW_CARD_LIMIT);
   const [backupMessage, setBackupMessage] = useState<string | null>(null);
   const [isRestoring, setIsRestoring] = useState(false);
+  const [ageRange, setAgeRange] = useState("");
+  const [ageSurveyDone, setAgeSurveyDone] = useState(true);
   const backupInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -88,6 +91,29 @@ export function StudyApp({ mode = "home" }: { mode?: "home" | "study" }) {
     }, 0);
     return () => window.clearTimeout(timer);
   }, []);
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setAgeSurveyDone(localStorage.getItem(AGE_SURVEY_DONE_KEY) === "true");
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    const startedAt = Date.now();
+    const reportDuration = () => {
+      const seconds = Math.round((Date.now() - startedAt) / 1000);
+      if (seconds < 5) return;
+      void fetch("/api/telemetry", {
+        method: "POST",
+        keepalive: true,
+        headers: { "content-type": "application/json" },
+        body: JSON.stringify({ event: "time_spent_seconds", value: seconds }),
+      });
+    };
+    window.addEventListener("pagehide", reportDuration);
+    return () => window.removeEventListener("pagehide", reportDuration);
+  }, [mode]);
 
   useEffect(() => {
     const dismissTooltip = (event: PointerEvent) => {
@@ -110,7 +136,7 @@ export function StudyApp({ mode = "home" }: { mode?: "home" | "study" }) {
     const deviceId = getDeviceId();
     Promise.all([
       fetch("/vocabulary.json").then((response) => response.json() as Promise<VocabularySeed[]>),
-      fetch("/api/progress", { headers: deviceHeaders(deviceId) }).then((response) => {
+      fetch(`/api/progress?view=${mode}`, { headers: deviceHeaders(deviceId) }).then((response) => {
         if (!response.ok) throw new Error("progress fetch failed");
         return response.json() as Promise<{ cards: { card_id: number; scheduler_card_json: string; first_reviewed_at: number | null }[]; history: { card_id: number; rating: Rating; reviewed_at: number }[]; dailyNewLimit: number }>;
       }),
@@ -127,7 +153,7 @@ export function StudyApp({ mode = "home" }: { mode?: "home" | "study" }) {
       setSaveError(true);
       setLoaded(true);
     });
-  }, []);
+  }, [mode]);
 
   const startOfToday = useMemo(() => {
     const date = new Date();
@@ -265,6 +291,17 @@ export function StudyApp({ mode = "home" }: { mode?: "home" | "study" }) {
     }
   }
 
+  function submitAgeRange() {
+    if (!ageRange) return;
+    void fetch("/api/telemetry", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify({ event: "age_range_reported", detail: ageRange }),
+    });
+    localStorage.setItem(AGE_SURVEY_DONE_KEY, "true");
+    setAgeSurveyDone(true);
+  }
+
   if (!loaded) return <main className="app-shell"><p className="muted">単語を読み込んでいます…</p></main>;
 
   return (
@@ -329,6 +366,27 @@ export function StudyApp({ mode = "home" }: { mode?: "home" | "study" }) {
         </div>
         {backupMessage && <p className="backup-message" role="status">{backupMessage}</p>}
       </section>
+      {!ageSurveyDone && <section className="survey-card" aria-labelledby="survey-title">
+        <div>
+          <h2 id="survey-title">任意アンケート</h2>
+          <p>サービス改善のため、年代のみを匿名で集計します。送信しない場合は何も記録されません。</p>
+        </div>
+        <div className="survey-actions">
+          <label>年代
+            <select value={ageRange} onChange={(event) => setAgeRange(event.target.value)}>
+              <option value="">選択してください</option>
+              <option value="13-17">13〜17歳</option>
+              <option value="18-24">18〜24歳</option>
+              <option value="25-34">25〜34歳</option>
+              <option value="35-44">35〜44歳</option>
+              <option value="45-54">45〜54歳</option>
+              <option value="55+">55歳以上</option>
+            </select>
+          </label>
+          <button type="button" className="backup-button" disabled={!ageRange} onClick={submitAgeRange}>匿名で送信</button>
+          <button type="button" className="survey-skip" onClick={() => { localStorage.setItem(AGE_SURVEY_DONE_KEY, "true"); setAgeSurveyDone(true); }}>回答しない</button>
+        </div>
+      </section>}
       </>}
       {mode === "study" && <section className="study-progress" aria-label="今日の学習進捗">
         <div><span>今日の進捗</span><strong>{todayCompletedCount} / {todaySetCount} 語</strong></div>
@@ -344,7 +402,7 @@ export function StudyApp({ mode = "home" }: { mode?: "home" | "study" }) {
         </div></> : <button className="reveal" onClick={() => setRevealed(true)}>答えを見る</button>}
       </section> : <section className="complete"><h2>今日の学習は完了です</h2><p>{reviewCount > 0 ? "復習を完了してください。" : `今日の新規 ${dailyNewLimit} 語を完了しました。また明日。`}</p><a className="back-link complete-link" href="/">記録を見る</a></section>)}
       {mode === "home" && <>
-        <p className="privacy">学習データはこのブラウザに紐づきます。{saveError ? " 保存に失敗しました。ページを再読み込みして再試行してください。" : ""}</p>
+        <p className="privacy">学習データはこのブラウザに紐づきます。個人情報を含まない匿名の利用統計（利用画面・滞在時間・任意の年代）を、サービス改善のために集計します。{saveError ? " 保存に失敗しました。ページを再読み込みして再試行してください。" : ""}</p>
         <footer className="site-footer">© 2026 Kade_6174. All rights reserved.</footer>
       </>}
     </main>

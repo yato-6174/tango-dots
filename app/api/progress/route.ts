@@ -1,4 +1,5 @@
 import { env } from "cloudflare:workers";
+import { recordAnalytics } from "../analytics";
 
 const DEVICE_ID_HEADER = "x-tangodots-device-id";
 const VALID_DEVICE_ID = /^[a-zA-Z0-9-]{16,80}$/;
@@ -29,6 +30,8 @@ export async function GET(request: Request) {
   ]);
 
   const setting = settings.results[0] as { daily_new_limit?: number } | undefined;
+  const view = new URL(request.url).searchParams.get("view");
+  recordAnalytics(view === "study" ? "study_opened" : "home_opened");
   return Response.json({ cards: cardStates.results, history: reviewLogs.results, dailyNewLimit: setting?.daily_new_limit ?? DEFAULT_DAILY_NEW_LIMIT });
 }
 
@@ -44,6 +47,7 @@ export async function PUT(request: Request) {
   await env.DB.prepare(
     "INSERT INTO user_settings (device_id, daily_new_limit, updated_at) VALUES (?, ?, ?) ON CONFLICT(device_id) DO UPDATE SET daily_new_limit = excluded.daily_new_limit, updated_at = excluded.updated_at",
   ).bind(deviceId, payload.dailyNewLimit, Date.now()).run();
+  recordAnalytics("daily_limit_changed", payload.dailyNewLimit);
 
   return Response.json({ ok: true, dailyNewLimit: payload.dailyNewLimit });
 }
@@ -75,6 +79,7 @@ export async function POST(request: Request) {
       "INSERT INTO review_logs (device_id, card_id, rating, reviewed_at) VALUES (?, ?, ?, ?)",
     ).bind(deviceId, payload.cardId, payload.rating, payload.reviewedAt),
   ]);
+  recordAnalytics((["answer_again", "answer_hard", "answer_good", "answer_easy"] as const)[payload.rating! - 1]);
 
   return Response.json({ ok: true });
 }
