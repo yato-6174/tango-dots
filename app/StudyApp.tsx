@@ -61,13 +61,6 @@ function createStoredCard(seed: VocabularySeed): StoredCard {
   return { ...seed, schedulerCard: serializeCard(createEmptyCard()), firstReviewedAt: null };
 }
 
-function formatInterval(due: Date) {
-  const minutes = Math.max(1, Math.round((due.getTime() - Date.now()) / 60000));
-  if (minutes < 60) return `${minutes}分後`;
-  const days = Math.max(1, Math.round(minutes / 1440));
-  return `${days}日後`;
-}
-
 function activityLevel(count: number) {
   if (count === 0) return 0;
   if (count < 10) return 1;
@@ -156,7 +149,6 @@ export function StudyApp({ mode = "home" }: { mode?: "home" | "study" }) {
     return card.state !== State.New && card.due <= new Date();
   }).length;
   const newCount = cards.filter(({ schedulerCard }) => hydrateCard(schedulerCard).state === State.New).length;
-  const preview = current ? scheduler.repeat(hydrateCard(current.schedulerCard), new Date()) : null;
 
   const todayReviewedCardIds = useMemo(() => new Set(history
     .filter((log) => new Date(log.reviewedAt).getTime() >= startOfToday)
@@ -218,13 +210,16 @@ export function StudyApp({ mode = "home" }: { mode?: "home" | "study" }) {
 
   return (
     <main className="app-shell">
-      <header className="site-header"><a className="brand" href="/">TangoDots</a>{mode === "study" && <a className="back-link" href="/">記録に戻る</a>}</header>
+      <header className="site-header"><a className="brand" href="/">TangoDots</a>{mode === "study" ? <a className="back-link" href="/">記録に戻る</a> : <a className="about-link" href="/about">使い方</a>}</header>
       {mode === "home" && <>
       <section className="summary">
         <p className="eyebrow">今日の学習</p>
         <h1 key={encouragement} className="encouragement">{encouragement}</h1>
-        <p className="summary-count">復習 <strong>{reviewCount}</strong> 枚 / 今日の新規 <strong>{introducedToday}</strong> / {DAILY_NEW_CARD_LIMIT} 枚</p>
-        <p className="new-remaining">未学習 <strong>{newCount}</strong> 枚</p>
+        <div className="summary-stats" aria-label="今日の学習量">
+          <div><span>復習</span><strong>{reviewCount}<small>語</small></strong></div>
+          <div><span>今日の新規</span><strong>{introducedToday}<small> / {DAILY_NEW_CARD_LIMIT}語</small></strong></div>
+        </div>
+        <p className="new-remaining">未学習 <strong>{newCount}</strong> 語</p>
       </section>
       <section className="activity-card" aria-labelledby="activity-title">
         <div><h2 id="activity-title">学習の記録</h2><p>{streak}日連続</p></div>
@@ -263,9 +258,7 @@ export function StudyApp({ mode = "home" }: { mode?: "home" | "study" }) {
         <div className="card-meta">{currentPosition} / {todaySetCount}</div>
         <p className="word">{current.front}</p>
         {revealed ? <><p className="meaning">{current.back}</p><div className="rating-grid">
-          {[Rating.Again, Rating.Hard, Rating.Good, Rating.Easy].map((rating) => <button className={`rating rating-${rating}`} key={rating} onClick={() => answer(rating)}>
-            <span>{ratingLabels[rating]}</span><small>{preview ? formatInterval(preview[rating].card.due) : ""}</small>
-          </button>)}
+          {[Rating.Again, Rating.Hard, Rating.Good, Rating.Easy].map((rating) => <button className={`rating rating-${rating}`} key={rating} onClick={() => answer(rating)}>{ratingLabels[rating]}</button>)}
         </div></> : <button className="reveal" onClick={() => setRevealed(true)}>答えを見る</button>}
       </section> : <section className="complete"><h2>今日の学習は完了です</h2><p>{reviewCount > 0 ? "復習を完了してください。" : `今日の新規 ${DAILY_NEW_CARD_LIMIT} 枚を完了しました。また明日。`}</p><a className="back-link complete-link" href="/">記録を見る</a></section>)}
       {mode === "home" && <>
