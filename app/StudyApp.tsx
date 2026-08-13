@@ -82,9 +82,30 @@ export function StudyApp({ mode = "home" }: { mode?: "home" | "study" }) {
   const [loaded, setLoaded] = useState(false);
   const [saveError, setSaveError] = useState(false);
   const [encouragement, setEncouragement] = useState(ENCOURAGEMENTS[0]);
+  const [activeDay, setActiveDay] = useState<string | null>(null);
 
   useEffect(() => {
-    setEncouragement(ENCOURAGEMENTS[Math.floor(Math.random() * ENCOURAGEMENTS.length)]);
+    const timer = window.setTimeout(() => {
+      setEncouragement(ENCOURAGEMENTS[Math.floor(Math.random() * ENCOURAGEMENTS.length)]);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    const dismissTooltip = (event: PointerEvent) => {
+      if (!(event.target instanceof Element) || !event.target.closest(".dot-button")) {
+        setActiveDay(null);
+      }
+    };
+    const dismissOnEscape = (event: KeyboardEvent) => {
+      if (event.key === "Escape") setActiveDay(null);
+    };
+    document.addEventListener("pointerdown", dismissTooltip);
+    document.addEventListener("keydown", dismissOnEscape);
+    return () => {
+      document.removeEventListener("pointerdown", dismissTooltip);
+      document.removeEventListener("keydown", dismissOnEscape);
+    };
   }, []);
 
   useEffect(() => {
@@ -144,7 +165,9 @@ export function StudyApp({ mode = "home" }: { mode?: "home" | "study" }) {
       date.setHours(0, 0, 0, 0);
       date.setDate(date.getDate() - (90 - index));
       const key = formatter.format(date);
-      const count = history.filter((log) => formatter.format(new Date(log.reviewedAt)) === key).length;
+      const count = new Set(history
+        .filter((log) => formatter.format(new Date(log.reviewedAt)) === key)
+        .map((log) => log.cardId)).size;
       return { date, count };
     });
   }, [history]);
@@ -162,7 +185,7 @@ export function StudyApp({ mode = "home" }: { mode?: "home" | "study" }) {
     if (!current) return;
     const result = scheduler.next(hydrateCard(current.schedulerCard), new Date(), rating);
     const serialized = serializeCard(result.card);
-    const reviewedAt = Date.now();
+    const reviewedAt = new Date().getTime();
     const firstReviewedAt = current.firstReviewedAt ?? reviewedAt;
     setCards((previous) => previous.map((item) => item.sourceNumber === current.sourceNumber
       ? { ...item, schedulerCard: serialized, firstReviewedAt }
@@ -187,13 +210,29 @@ export function StudyApp({ mode = "home" }: { mode?: "home" | "study" }) {
       <section className="summary">
         <p className="eyebrow">今日の学習</p>
         <h1 key={encouragement} className="encouragement">{encouragement}</h1>
-        <p className="summary-count">復習 <strong>{reviewCount}</strong> 枚　今日の新規 <strong>{introducedToday}</strong> / {DAILY_NEW_CARD_LIMIT} 枚</p>
+        <p className="summary-count">復習 <strong>{reviewCount}</strong> 枚 / 今日の新規 <strong>{introducedToday}</strong> / {DAILY_NEW_CARD_LIMIT} 枚</p>
         <p className="new-remaining">未学習 <strong>{newCount}</strong> 枚</p>
       </section>
       <section className="activity-card" aria-labelledby="activity-title">
         <div><h2 id="activity-title">学習の記録</h2><p>{streak}日連続</p></div>
-        <div className="activity-grid" aria-label="直近91日の学習記録">
-          {days.map((day) => <span key={day.date.toISOString()} className={`dot level-${activityLevel(day.count)}`} title={`${day.date.toLocaleDateString("ja-JP")}: ${day.count}枚`} />)}
+        <div className="activity-grid" aria-label="直近91日の学習記録" onMouseLeave={() => setActiveDay(null)}>
+          {days.map((day) => {
+            const dayKey = day.date.toISOString();
+            const isActive = activeDay === dayKey;
+            const label = `${day.date.toLocaleDateString("ja-JP", { month: "long", day: "numeric", weekday: "short" })}: ${day.count}語`;
+            return <span className="dot-wrap" key={dayKey}>
+              <button
+                type="button"
+                className={`dot-button dot level-${activityLevel(day.count)}`}
+                aria-label={label}
+                aria-expanded={isActive}
+                onMouseEnter={() => setActiveDay(dayKey)}
+                onFocus={() => setActiveDay(dayKey)}
+                onClick={() => setActiveDay((previous) => previous === dayKey ? null : dayKey)}
+              />
+              {isActive && <span className="dot-tooltip" role="tooltip">{label}</span>}
+            </span>;
+          })}
         </div>
         <small>直近91日</small>
       </section>
