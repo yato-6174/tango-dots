@@ -37,6 +37,6 @@ export default function AboutPage() {
       <p>FSRS（Free Spaced Repetition Scheduler）は、回答履歴をもとに次の復習時期を調整します。固定の間隔で全員に同じ復習を出す方式と比べ、覚えている単語の反復を減らし、忘れやすい単語へ時間を使いやすくします。</p>
       <p>効果は評価を正直に選び、短時間でも継続することで高まりやすくなります。</p>
     </section>
-    <footer className="site-footer">© 2026 Kade_6174. All rights reserved.</footer>
+    <footer className="site-footer">© 2026 yato-6174. All rights reserved.</footer>
   </main>;
 }

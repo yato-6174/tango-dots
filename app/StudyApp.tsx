@@ -403,7 +403,7 @@ export function StudyApp({ mode = "home" }: { mode?: "home" | "study" }) {
       </section> : <section className="complete"><h2>今日の学習は完了です</h2><p>{reviewCount > 0 ? "復習を完了してください。" : `今日の新規 ${dailyNewLimit} 語を完了しました。また明日。`}</p><a className="back-link complete-link" href="/">記録を見る</a></section>)}
       {mode === "home" && <>
         <p className="privacy">学習データはこのブラウザに紐づきます。個人情報を含まない匿名の利用統計（利用画面・滞在時間・任意の年代）を、サービス改善のために集計します。{saveError ? " 保存に失敗しました。ページを再読み込みして再試行してください。" : ""}</p>
-        <footer className="site-footer">© 2026 Kade_6174. All rights reserved.</footer>
+        <footer className="site-footer">© 2026 yato-6174. All rights reserved.</footer>
       </>}
     </main>
   );
