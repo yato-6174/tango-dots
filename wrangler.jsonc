@@ -1,0 +1,18 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "tango-dots",
+  "main": "dist/server/index.js",
+  "compatibility_date": "2026-08-13",
+  "compatibility_flags": ["nodejs_compat"],
+  "assets": {
+    "directory": "dist/client"
+  },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "tango-dots",
+      "database_id": "3fff70fc-0713-4683-9b20-0e12cb8e929c",
+      "migrations_dir": "migrations"
+    }
+  ]
+}

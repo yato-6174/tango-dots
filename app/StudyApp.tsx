@@ -11,7 +11,7 @@ type SerializedCard = Omit<Card, "due" | "last_review"> & {
 };
 type ReviewLog = { reviewedAt: string; rating: Rating };
 
-const STORAGE_KEY = "tangodots.study.v1";
+const DEVICE_ID_KEY = "tangodots.device-id.v1";
 const scheduler = fsrs({
   request_retention: 0.9,
   enable_fuzz: true,
@@ -66,27 +66,23 @@ export function StudyApp() {
   const [history, setHistory] = useState<ReviewLog[]>([]);
   const [revealed, setRevealed] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const [saveError, setSaveError] = useState(false);
 
   useEffect(() => {
-    const saved = localStorage.getItem(STORAGE_KEY);
-    if (saved) {
-      const parsed = JSON.parse(saved) as { cards: StoredCard[]; history: ReviewLog[] };
-      setCards(parsed.cards);
-      setHistory(parsed.history);
+    const deviceId = getDeviceId();
+    Promise.all([
+      fetch("/vocabulary.json").then((response) => response.json() as Promise<VocabularySeed[]>),
+      fetch("/api/progress", { headers: deviceHeaders(deviceId) }).then((response) => {
+        if (!response.ok) throw new Error("progress fetch failed");
+        return response.json() as Promise<{ cards: { card_id: number; scheduler_card_json: string }[]; history: { rating: Rating; reviewed_at: number }[] }>;
+      }),
+    ]).then(([seeds, progress]) => {
+      const stateByCardId = new Map(progress.cards.map((card) => [card.card_id, JSON.parse(card.scheduler_card_json) as SerializedCard]));
+      setCards(seeds.map((seed) => ({ ...createStoredCard(seed), schedulerCard: stateByCardId.get(seed.sourceNumber) ?? serializeCard(createEmptyCard()) })));
+      setHistory(progress.history.map((log) => ({ reviewedAt: new Date(log.reviewed_at).toISOString(), rating: log.rating })));
       setLoaded(true);
-      return;
-    }
-    fetch("/vocabulary.json")
-      .then((response) => response.json())
-      .then((seeds: VocabularySeed[]) => {
-        setCards(seeds.map(createStoredCard));
-        setLoaded(true);
-      });
+    }).catch(() => setSaveError(true));
   }, []);
-
-  useEffect(() => {
-    if (loaded) localStorage.setItem(STORAGE_KEY, JSON.stringify({ cards, history }));
-  }, [cards, history, loaded]);
 
   const current = useMemo(() => {
     const now = new Date();
@@ -127,18 +123,27 @@ export function StudyApp() {
   function answer(rating: Rating) {
     if (!current) return;
     const result = scheduler.next(hydrateCard(current.schedulerCard), new Date(), rating);
+    const serialized = serializeCard(result.card);
+    const reviewedAt = Date.now();
     setCards((previous) => previous.map((item) => item.sourceNumber === current.sourceNumber
-      ? { ...item, schedulerCard: serializeCard(result.card) }
+      ? { ...item, schedulerCard: serialized }
       : item));
-    setHistory((previous) => [...previous, { reviewedAt: new Date().toISOString(), rating }]);
+    setHistory((previous) => [...previous, { reviewedAt: new Date(reviewedAt).toISOString(), rating }]);
     setRevealed(false);
+    fetch("/api/progress", {
+      method: "POST",
+      headers: { "content-type": "application/json", ...deviceHeaders(getDeviceId()) },
+      body: JSON.stringify({ cardId: current.sourceNumber, schedulerCard: serialized, rating, reviewedAt }),
+    }).then((response) => {
+      if (!response.ok) setSaveError(true);
+    }).catch(() => setSaveError(true));
   }
 
   if (!loaded) return <main className="app-shell"><p className="muted">単語を読み込んでいます…</p></main>;
 
   return (
     <main className="app-shell">
-      <header className="site-header"><span className="brand">TangoDots</span><span>FSRS 単語帳</span></header>
+      <header className="site-header"><span className="brand">TangoDots</span><span>無料・FSRS単語帳</span></header>
       <section className="summary">
         <p className="eyebrow">今日の学習</p>
         <h1>少しずつ、確実に。</h1>
@@ -160,7 +165,19 @@ export function StudyApp() {
           </button>)}
         </div></> : <button className="reveal" onClick={() => setRevealed(true)}>答えを見る</button>}
       </section> : <section className="complete"><h2>今日の学習は完了です</h2><p>また次の復習で会いましょう。</p></section>}
-      <p className="privacy">学習履歴はこのブラウザ内に保存されます。</p>
+      <p className="privacy">学習履歴はCloudflare D1に保存されます。{saveError ? " 保存に失敗しました。ページを再読み込みして再試行してください。" : ""}</p>
     </main>
   );
+}
+
+function getDeviceId() {
+  const stored = localStorage.getItem(DEVICE_ID_KEY);
+  if (stored) return stored;
+  const id = crypto.randomUUID();
+  localStorage.setItem(DEVICE_ID_KEY, id);
+  return id;
+}
+
+function deviceHeaders(deviceId: string) {
+  return { "x-tangodots-device-id": deviceId };
 }
