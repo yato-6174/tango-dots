@@ -158,6 +158,19 @@ export function StudyApp({ mode = "home" }: { mode?: "home" | "study" }) {
   const newCount = cards.filter(({ schedulerCard }) => hydrateCard(schedulerCard).state === State.New).length;
   const preview = current ? scheduler.repeat(hydrateCard(current.schedulerCard), new Date()) : null;
 
+  const todayReviewedCardIds = useMemo(() => new Set(history
+    .filter((log) => new Date(log.reviewedAt).getTime() >= startOfToday)
+    .map((log) => log.cardId)), [history, startOfToday]);
+  const todayCompletedCount = todayReviewedCardIds.size;
+  const dueUnseenTodayCount = cards.filter(({ sourceNumber, schedulerCard }) => {
+    const card = hydrateCard(schedulerCard);
+    return card.state !== State.New && card.due <= new Date() && !todayReviewedCardIds.has(sourceNumber);
+  }).length;
+  const todaySetCount = todayCompletedCount + dueUnseenTodayCount + remainingNewSlots;
+  const currentPosition = current && !todayReviewedCardIds.has(current.sourceNumber)
+    ? todayCompletedCount + 1
+    : todayCompletedCount;
+
   const days = useMemo(() => {
     const formatter = new Intl.DateTimeFormat("ja-JP", { year: "numeric", month: "2-digit", day: "2-digit" });
     return Array.from({ length: 91 }, (_, index) => {
@@ -247,7 +260,7 @@ export function StudyApp({ mode = "home" }: { mode?: "home" | "study" }) {
       </section>
       </>}
       {mode === "study" && (current ? <section className="study-card" aria-live="polite">
-        <div className="card-meta">{current.sourceNumber} / {cards.length}</div>
+        <div className="card-meta">{currentPosition} / {todaySetCount}</div>
         <p className="word">{current.front}</p>
         {revealed ? <><p className="meaning">{current.back}</p><div className="rating-grid">
           {[Rating.Again, Rating.Hard, Rating.Good, Rating.Easy].map((rating) => <button className={`rating rating-${rating}`} key={rating} onClick={() => answer(rating)}>
@@ -255,8 +268,10 @@ export function StudyApp({ mode = "home" }: { mode?: "home" | "study" }) {
           </button>)}
         </div></> : <button className="reveal" onClick={() => setRevealed(true)}>答えを見る</button>}
       </section> : <section className="complete"><h2>今日の学習は完了です</h2><p>{reviewCount > 0 ? "復習を完了してください。" : `今日の新規 ${DAILY_NEW_CARD_LIMIT} 枚を完了しました。また明日。`}</p><a className="back-link complete-link" href="/">記録を見る</a></section>)}
-      <p className="privacy">学習履歴はCloudflare D1に保存されます。{saveError ? " 保存に失敗しました。ページを再読み込みして再試行してください。" : ""}</p>
-      <footer className="site-footer">© 2026 Kade_6174. All rights reserved.</footer>
+      {mode === "home" && <>
+        <p className="privacy">学習履歴はCloudflare D1に保存されます。{saveError ? " 保存に失敗しました。ページを再読み込みして再試行してください。" : ""}</p>
+        <footer className="site-footer">© 2026 Kade_6174. All rights reserved.</footer>
+      </>}
     </main>
   );
 }
