@@ -4,7 +4,7 @@
 
 FSRS（Free Spaced Repetition Scheduler）を使い、英単語を少量ずつ継続して学ぶための無料Webアプリです。
 
-公開サイト: https://tango-dots.kade-dev.workers.dev/
+公開サイト: https://tangodots.yato-lab.com/
 
 ## できること
 
@@ -26,7 +26,7 @@ FSRS（Free Spaced Repetition Scheduler）を使い、英単語を少量ずつ�
 
 固定された復習間隔とは異なり、FSRSは各単語への回答履歴を使って復習時期を調整します。覚えている単語への不要な反復を減らし、忘れやすい単語に時間を使いやすくすることを目指しています。
 
-詳しい使い方は、公開サイトの [使い方ページ](https://tango-dots.kade-dev.workers.dev/about) を参照してください。
+詳しい使い方は、公開サイトの [使い方ページ](https://tangodots.yato-lab.com/about) を参照してください。
 
 ## データと料金
 
