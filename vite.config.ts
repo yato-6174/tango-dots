@@ -7,13 +7,7 @@ const isCodexSeatbeltSandbox = process.env.CODEX_SANDBOX === "seatbelt";
 const localBindingConfig = {
   main: "./worker/index.ts",
   compatibility_flags: ["nodejs_compat"],
-  d1_databases: [
-    {
-      binding: "DB",
-      database_name: "tango-dots",
-      database_id: "3fff70fc-0713-4683-9b20-0e12cb8e929c",
-    },
-  ],
+  d1_databases: [],
 };
 
 export default defineConfig(async () => {

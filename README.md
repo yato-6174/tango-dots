@@ -8,6 +8,7 @@ TangoDotsは、FSRS（Free Spaced Repetition Scheduler）で復習のタイミ�
 - `ts-fsrs` によるFSRS v6スケジューリング
 - Cloudflare D1へ学習履歴を保存
 - GitHub風の継続ドット（直近91日）
+- 新規単語は1日100語まで。FSRSの復習を優先して出題
 - 2,300語の初期デッキ
 
 ## 技術構成

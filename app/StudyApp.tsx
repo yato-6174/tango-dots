@@ -2,16 +2,30 @@
 
 import { createEmptyCard, fsrs, Rating, State, type Card } from "ts-fsrs";
 import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 
 type VocabularySeed = { sourceNumber: number; front: string; back: string };
-type StoredCard = VocabularySeed & { schedulerCard: SerializedCard };
+type StoredCard = VocabularySeed & {
+  schedulerCard: SerializedCard;
+  firstReviewedAt: number | null;
+};
 type SerializedCard = Omit<Card, "due" | "last_review"> & {
   due: string;
   last_review: string | null;
 };
-type ReviewLog = { reviewedAt: string; rating: Rating };
+type ReviewLog = { cardId: number; reviewedAt: string; rating: Rating };
 
 const DEVICE_ID_KEY = "tangodots.device-id.v1";
+const DAILY_NEW_CARD_LIMIT = 100;
+const ENCOURAGEMENTS = [
+  "千里の道も一歩から。",
+  "継続は力なり。",
+  "小さな前進も、前進。",
+  "今日の一語が、明日の自信になる。",
+  "完璧より、続けること。",
+  "学びは、未来の自分への贈り物。",
+  "焦らず、比べず、一歩ずつ。",
+];
 const scheduler = fsrs({
   request_retention: 0.9,
   enable_fuzz: true,
@@ -44,7 +58,7 @@ function hydrateCard(card: SerializedCard): Card {
 }
 
 function createStoredCard(seed: VocabularySeed): StoredCard {
-  return { ...seed, schedulerCard: serializeCard(createEmptyCard()) };
+  return { ...seed, schedulerCard: serializeCard(createEmptyCard()), firstReviewedAt: null };
 }
 
 function formatInterval(due: Date) {
@@ -61,12 +75,17 @@ function activityLevel(count: number) {
   return 3;
 }
 
-export function StudyApp() {
+export function StudyApp({ mode = "home" }: { mode?: "home" | "study" }) {
   const [cards, setCards] = useState<StoredCard[]>([]);
   const [history, setHistory] = useState<ReviewLog[]>([]);
   const [revealed, setRevealed] = useState(false);
   const [loaded, setLoaded] = useState(false);
   const [saveError, setSaveError] = useState(false);
+  const [encouragement, setEncouragement] = useState(ENCOURAGEMENTS[0]);
+
+  useEffect(() => {
+    setEncouragement(ENCOURAGEMENTS[Math.floor(Math.random() * ENCOURAGEMENTS.length)]);
+  }, []);
 
   useEffect(() => {
     const deviceId = getDeviceId();
@@ -74,23 +93,42 @@ export function StudyApp() {
       fetch("/vocabulary.json").then((response) => response.json() as Promise<VocabularySeed[]>),
       fetch("/api/progress", { headers: deviceHeaders(deviceId) }).then((response) => {
         if (!response.ok) throw new Error("progress fetch failed");
-        return response.json() as Promise<{ cards: { card_id: number; scheduler_card_json: string }[]; history: { rating: Rating; reviewed_at: number }[] }>;
+        return response.json() as Promise<{ cards: { card_id: number; scheduler_card_json: string; first_reviewed_at: number | null }[]; history: { card_id: number; rating: Rating; reviewed_at: number }[] }>;
       }),
     ]).then(([seeds, progress]) => {
-      const stateByCardId = new Map(progress.cards.map((card) => [card.card_id, JSON.parse(card.scheduler_card_json) as SerializedCard]));
-      setCards(seeds.map((seed) => ({ ...createStoredCard(seed), schedulerCard: stateByCardId.get(seed.sourceNumber) ?? serializeCard(createEmptyCard()) })));
-      setHistory(progress.history.map((log) => ({ reviewedAt: new Date(log.reviewed_at).toISOString(), rating: log.rating })));
+      const stateByCardId = new Map(progress.cards.map((card) => [card.card_id, {
+        schedulerCard: JSON.parse(card.scheduler_card_json) as SerializedCard,
+        firstReviewedAt: card.first_reviewed_at,
+      }]));
+      setCards(seeds.map((seed) => ({ ...createStoredCard(seed), ...(stateByCardId.get(seed.sourceNumber) ?? {}) })));
+      setHistory(progress.history.map((log) => ({ cardId: log.card_id, reviewedAt: new Date(log.reviewed_at).toISOString(), rating: log.rating })));
       setLoaded(true);
-    }).catch(() => setSaveError(true));
+    }).catch(() => {
+      setSaveError(true);
+      setLoaded(true);
+    });
   }, []);
+
+  const startOfToday = useMemo(() => {
+    const date = new Date();
+    date.setHours(0, 0, 0, 0);
+    return date.getTime();
+  }, []);
+
+  const introducedToday = cards.filter((card) => card.firstReviewedAt !== null && card.firstReviewedAt >= startOfToday).length;
+  const remainingNewSlots = Math.max(0, DAILY_NEW_CARD_LIMIT - introducedToday);
 
   const current = useMemo(() => {
     const now = new Date();
     const due = cards
-      .filter(({ schedulerCard }) => hydrateCard(schedulerCard).due <= now)
+      .filter(({ schedulerCard }) => {
+        const card = hydrateCard(schedulerCard);
+        return card.state !== State.New && card.due <= now;
+      })
       .sort((a, b) => hydrateCard(a.schedulerCard).due.getTime() - hydrateCard(b.schedulerCard).due.getTime());
-    return due[0] ?? cards.find(({ schedulerCard }) => hydrateCard(schedulerCard).state === State.New) ?? null;
-  }, [cards]);
+    const newCards = cards.filter(({ schedulerCard }) => hydrateCard(schedulerCard).state === State.New);
+    return due[0] ?? (remainingNewSlots > 0 ? newCards[0] : null);
+  }, [cards, remainingNewSlots]);
 
   const reviewCount = cards.filter(({ schedulerCard }) => {
     const card = hydrateCard(schedulerCard);
@@ -125,15 +163,16 @@ export function StudyApp() {
     const result = scheduler.next(hydrateCard(current.schedulerCard), new Date(), rating);
     const serialized = serializeCard(result.card);
     const reviewedAt = Date.now();
+    const firstReviewedAt = current.firstReviewedAt ?? reviewedAt;
     setCards((previous) => previous.map((item) => item.sourceNumber === current.sourceNumber
-      ? { ...item, schedulerCard: serialized }
+      ? { ...item, schedulerCard: serialized, firstReviewedAt }
       : item));
-    setHistory((previous) => [...previous, { reviewedAt: new Date(reviewedAt).toISOString(), rating }]);
+    setHistory((previous) => [...previous, { cardId: current.sourceNumber, reviewedAt: new Date(reviewedAt).toISOString(), rating }]);
     setRevealed(false);
     fetch("/api/progress", {
       method: "POST",
       headers: { "content-type": "application/json", ...deviceHeaders(getDeviceId()) },
-      body: JSON.stringify({ cardId: current.sourceNumber, schedulerCard: serialized, rating, reviewedAt }),
+      body: JSON.stringify({ cardId: current.sourceNumber, schedulerCard: serialized, rating, reviewedAt, firstReviewedAt }),
     }).then((response) => {
       if (!response.ok) setSaveError(true);
     }).catch(() => setSaveError(true));
@@ -143,11 +182,13 @@ export function StudyApp() {
 
   return (
     <main className="app-shell">
-      <header className="site-header"><span className="brand">TangoDots</span><span>無料・FSRS単語帳</span></header>
+      <header className="site-header"><Link className="brand" href="/">TangoDots</Link>{mode === "study" && <Link className="back-link" href="/">記録へ戻る</Link>}</header>
+      {mode === "home" && <>
       <section className="summary">
         <p className="eyebrow">今日の学習</p>
-        <h1>少しずつ、確実に。</h1>
-        <p className="summary-count">復習 <strong>{reviewCount}</strong> 枚　新規 <strong>{newCount}</strong> 枚</p>
+        <h1 key={encouragement} className="encouragement">{encouragement}</h1>
+        <p className="summary-count">復習 <strong>{reviewCount}</strong> 枚　今日の新規 <strong>{introducedToday}</strong> / {DAILY_NEW_CARD_LIMIT} 枚</p>
+        <p className="new-remaining">未学習 <strong>{newCount}</strong> 枚</p>
       </section>
       <section className="activity-card" aria-labelledby="activity-title">
         <div><h2 id="activity-title">学習の記録</h2><p>{streak}日連続</p></div>
@@ -156,7 +197,12 @@ export function StudyApp() {
         </div>
         <small>直近91日</small>
       </section>
-      {current ? <section className="study-card" aria-live="polite">
+      <section className="start-card">
+        <div><h2>今日のセット</h2><p>{reviewCount > 0 ? `復習 ${reviewCount} 枚を優先して始めましょう。` : `新規をあと ${remainingNewSlots} 枚まで学習できます。`}</p></div>
+        <Link className="start-button" href="/study">学習をはじめる</Link>
+      </section>
+      </>}
+      {mode === "study" && (current ? <section className="study-card" aria-live="polite">
         <div className="card-meta">{current.sourceNumber} / {cards.length}</div>
         <p className="word">{current.front}</p>
         {revealed ? <><p className="meaning">{current.back}</p><div className="rating-grid">
@@ -164,8 +210,9 @@ export function StudyApp() {
             <span>{ratingLabels[rating]}</span><small>{preview ? formatInterval(preview[rating].card.due) : ""}</small>
           </button>)}
         </div></> : <button className="reveal" onClick={() => setRevealed(true)}>答えを見る</button>}
-      </section> : <section className="complete"><h2>今日の学習は完了です</h2><p>また次の復習で会いましょう。</p></section>}
+      </section> : <section className="complete"><h2>今日の学習は完了です</h2><p>{reviewCount > 0 ? "復習を完了してください。" : `今日の新規 ${DAILY_NEW_CARD_LIMIT} 枚を完了しました。また明日。`}</p><Link className="back-link complete-link" href="/">記録を見る</Link></section>)}
       <p className="privacy">学習履歴はCloudflare D1に保存されます。{saveError ? " 保存に失敗しました。ページを再読み込みして再試行してください。" : ""}</p>
+      <footer className="site-footer">© 2026 Kade_6174. All rights reserved.</footer>
     </main>
   );
 }

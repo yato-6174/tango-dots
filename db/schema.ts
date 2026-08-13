@@ -6,6 +6,7 @@ export const userCardStates = sqliteTable(
     deviceId: text("device_id").notNull(),
     cardId: integer("card_id").notNull(),
     schedulerCardJson: text("scheduler_card_json").notNull(),
+    firstReviewedAt: integer("first_reviewed_at", { mode: "timestamp_ms" }),
     updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
   },
   (table) => [primaryKey({ columns: [table.deviceId, table.cardId] })],

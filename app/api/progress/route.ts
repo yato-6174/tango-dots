@@ -16,7 +16,7 @@ export async function GET(request: Request) {
   const from = Date.now() - 91 * 24 * 60 * 60 * 1000;
   const [cardStates, reviewLogs] = await env.DB.batch([
     env.DB.prepare(
-      "SELECT card_id, scheduler_card_json FROM user_card_states WHERE device_id = ?",
+      "SELECT card_id, scheduler_card_json, first_reviewed_at FROM user_card_states WHERE device_id = ?",
     ).bind(deviceId),
     env.DB.prepare(
       "SELECT card_id, rating, reviewed_at FROM review_logs WHERE device_id = ? AND reviewed_at >= ? ORDER BY reviewed_at ASC",
@@ -35,9 +35,11 @@ export async function POST(request: Request) {
     schedulerCard?: unknown;
     rating?: number;
     reviewedAt?: number;
+    firstReviewedAt?: number;
   };
   if (!Number.isInteger(payload.cardId) || payload.cardId! < 1 || payload.cardId! > 2300 ||
-      !VALID_RATINGS.has(payload.rating ?? 0) || !Number.isFinite(payload.reviewedAt) || !payload.schedulerCard) {
+      !VALID_RATINGS.has(payload.rating ?? 0) || !Number.isFinite(payload.reviewedAt) ||
+      !Number.isFinite(payload.firstReviewedAt) || !payload.schedulerCard) {
     return Response.json({ error: "学習データの形式が正しくありません。" }, { status: 400 });
   }
 
@@ -45,8 +47,8 @@ export async function POST(request: Request) {
   const updatedAt = Date.now();
   await env.DB.batch([
     env.DB.prepare(
-      "INSERT INTO user_card_states (device_id, card_id, scheduler_card_json, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT(device_id, card_id) DO UPDATE SET scheduler_card_json = excluded.scheduler_card_json, updated_at = excluded.updated_at",
-    ).bind(deviceId, payload.cardId, schedulerCardJson, updatedAt),
+      "INSERT INTO user_card_states (device_id, card_id, scheduler_card_json, first_reviewed_at, updated_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(device_id, card_id) DO UPDATE SET scheduler_card_json = excluded.scheduler_card_json, first_reviewed_at = COALESCE(user_card_states.first_reviewed_at, excluded.first_reviewed_at), updated_at = excluded.updated_at",
+    ).bind(deviceId, payload.cardId, schedulerCardJson, payload.firstReviewedAt, updatedAt),
     env.DB.prepare(
       "INSERT INTO review_logs (device_id, card_id, rating, reviewed_at) VALUES (?, ?, ?, ?)",
     ).bind(deviceId, payload.cardId, payload.rating, payload.reviewedAt),
