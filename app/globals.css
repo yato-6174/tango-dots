@@ -2,12 +2,12 @@
 
 :root { --ink: #0a0a0a; --muted: #707070; --line: #dedede; --paper: #ffffff; }
 * { box-sizing: border-box; }
-body { margin: 0; background: var(--paper); color: var(--ink); font-family: ui-rounded, "Hiragino Sans", "Yu Gothic", system-ui, sans-serif; }
+body { margin: 0; background: var(--paper); color: var(--ink); font-family: Arial, "Hiragino Sans", "Yu Gothic", sans-serif; }
 button { font: inherit; cursor: pointer; }
 .app-shell { width: min(100%, 680px); margin: 0 auto; padding: 24px 20px 40px; }
-.site-header { display: flex; align-items: center; color: var(--muted); font-size: 14px; }
+.site-header { display: flex; align-items: center; justify-content: space-between; color: var(--muted); font-size: 14px; }
 .brand { color: var(--ink); font-size: 20px; font-weight: 800; letter-spacing: -.04em; text-decoration: none; }
-.back-link { color: var(--muted); font-size: 13px; text-decoration: none; transition: color .2s ease; }.back-link:hover { color: var(--ink); }
+.back-link { display: inline-flex; align-items: center; min-height: 32px; padding: 0 11px; border: 1px solid var(--line); border-radius: 999px; color: var(--ink); background: #fff; font-size: 12px; font-weight: 700; text-decoration: none; transition: transform .2s ease, background .2s ease, border-color .2s ease; }.back-link:hover { border-color: var(--ink); background: var(--ink); color: #fff; transform: translateY(-1px); }
 .summary { padding: 48px 0 28px; }
 .eyebrow { margin: 0 0 8px; color: var(--ink); font-size: 13px; font-weight: 800; letter-spacing: .08em; }
 h1 { margin: 0; font-size: clamp(32px, 7vw, 48px); letter-spacing: -.07em; line-height: 1.1; }

@@ -205,7 +205,7 @@ export function StudyApp({ mode = "home" }: { mode?: "home" | "study" }) {
 
   return (
     <main className="app-shell">
-      <header className="site-header"><a className="brand" href="/">TangoDots</a>{mode === "study" && <a className="back-link" href="/">記録へ戻る</a>}</header>
+      <header className="site-header"><a className="brand" href="/">TangoDots</a>{mode === "study" && <a className="back-link" href="/">記録に戻る</a>}</header>
       {mode === "home" && <>
       <section className="summary">
         <p className="eyebrow">今日の学習</p>
