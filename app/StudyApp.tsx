@@ -307,7 +307,7 @@ export function StudyApp({ mode = "home" }: { mode?: "home" | "study" }) {
   return (
     <main className="app-shell">
       <header className="site-header"><a className="brand" href="/">TangoDots</a>{mode === "study" ? <a className="back-link" href="/">記録に戻る</a> : <a className="about-link" href="/about">使い方</a>}</header>
-      {mode === "home" && <>
+      {mode === "home" && <div className="home-content">
       <section className="summary">
         <p className="eyebrow">今日の学習</p>
         <h1 key={encouragement} className="encouragement">{encouragement}</h1>
@@ -387,7 +387,7 @@ export function StudyApp({ mode = "home" }: { mode?: "home" | "study" }) {
           <button type="button" className="survey-skip" onClick={() => { localStorage.setItem(AGE_SURVEY_DONE_KEY, "true"); setAgeSurveyDone(true); }}>回答しない</button>
         </div>
       </section>}
-      </>}
+      </div>}
       {mode === "study" && <section className="study-progress" aria-label="今日の学習進捗">
         <div><span>今日の進捗</span><strong>{todayCompletedCount} / {todaySetCount} 語</strong></div>
         <div className="study-progress-track" role="progressbar" aria-label="今日の学習の進捗" aria-valuemin={0} aria-valuemax={todaySetCount} aria-valuenow={todayCompletedCount}>

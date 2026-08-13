@@ -32,3 +32,36 @@ h2 { margin: 0; font-size: 16px; }
 @keyframes tooltip-in { from { opacity: 0; transform: translate(-50%, 3px); } to { opacity: 1; transform: translate(-50%, 0); } }
 @media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation-duration: .01ms !important; transition-duration: .01ms !important; } }
 @media (min-width: 640px) { .rating-grid { grid-template-columns: repeat(4, 1fr); } }
+
+/* Home screen: place the primary learning action before supporting history. */
+.home-content { display: flex; flex-direction: column; }
+.home-content > .summary { order: 0; }
+.home-content > .start-card { order: 1; margin-top: 0; box-shadow: 0 18px 42px rgba(0, 0, 0, .16); }
+.home-content > .activity-card { order: 2; margin-top: 16px; }
+.home-content > .backup-card { order: 3; }
+.home-content > .survey-card { order: 4; }
+.home-content > .privacy { order: 5; }
+.home-content > .site-footer { order: 6; }
+
+/* Make the most important action easy to find and comfortable to tap. */
+.start-card { align-items: stretch; }
+.start-button { display: inline-flex; align-items: center; justify-content: center; min-width: 152px; min-height: 62px; padding: 14px 20px; box-shadow: 0 5px 0 rgba(255, 255, 255, .2); }
+.start-button::after { content: "→"; margin-left: 10px; font-size: 18px; line-height: 1; transition: transform .2s ease; }
+.start-button:hover::after { transform: translateX(3px); }
+.start-button:focus-visible, .backup-button:focus-visible, .daily-limit-control select:focus-visible { outline: 3px solid #fff; outline-offset: 3px; }
+
+/* The activity graph remains touch friendly without competing with the CTA. */
+.activity-grid { grid-template-columns: repeat(13, 20px); gap: 4px; }
+.dot-wrap { width: 20px; height: 20px; }
+.dot { width: 18px; height: 18px; margin: 0 auto; }
+.activity-card { padding: 18px 20px; }
+
+@media (max-width: 520px) {
+  .app-shell { padding: 18px 16px 32px; }
+  .summary { padding: 36px 0 22px; }
+  .start-card { flex-direction: column; gap: 18px; padding: 20px; }
+  .start-button { width: 100%; }
+  .activity-grid { grid-template-columns: repeat(13, minmax(0, 1fr)); gap: 3px; }
+  .dot-wrap { width: 100%; height: auto; aspect-ratio: 1; }
+  .dot { width: 100%; height: 100%; max-width: 18px; max-height: 18px; }
+}
