@@ -1,21 +1,31 @@
 # TangoDots
 
-日本語で使える、FSRS対応のシンプルなiPhone英単語帳アプリです。毎日の学習は継続ドットとホーム画面ウィジェットで確認できます。
+TangoDotsは、FSRS（Free Spaced Repetition Scheduler）で復習のタイミングを調整する、シンプルなWeb単語帳です。PC・スマートフォンのブラウザから使え、毎日の学習量は91日分の継続ドットで確認できます。
 
-## 技術
+## 機能
 
-- SwiftUI / iOS 17+
-- FSRS v5: [open-spaced-repetition/swift-fsrs](https://github.com/open-spaced-repetition/swift-fsrs)
-- XcodeGenでプロジェクトを生成
-- WidgetKit / App Groups
+- 「もう一度 / 難しい / 良い / かんたん」の日本語4段階評価
+- `ts-fsrs` によるFSRS v6スケジューリング
+- ブラウザ内のローカルストレージへ学習履歴を保存
+- GitHub風の継続ドット（直近91日）
+- 2,300語の初期デッキ
 
-## 開発を始める（macOS）
+## 技術構成
 
-1. XcodeとXcodeGenをインストールする。
-2. リポジトリのルートで `xcodegen generate` を実行する。
-3. `TangoDots.xcodeproj` をXcodeで開き、Signing & Capabilitiesで自分のTeamを選ぶ。
-4. App Groupsの `group.com.kade6174.tangodots` をDeveloper Account上でも有効にしてから実機で実行する。
+- React / TypeScript / vinext
+- Cloudflare Workers互換のビルド出力
+- `ts-fsrs` 5.4.1
+- Cloudflareへのデプロイ
 
-## コンテンツについて
+## ローカルでの起動
 
-初期デッキは、ユーザー提供の `単語データ.xlsx` から生成した `TangoDots/Resources/vocabulary.json` を使用します。元のExcelファイルはリポジトリへ含めません。App Storeで配信する教材には、単語・訳語の作成に利用した辞書などについて必要な利用許諾を確認してください。詳細は [設計書](outputs/anki-fsrs-iphone-design.md) を参照してください。
+```bash
+npm install
+npm run dev
+```
+
+## データについて
+
+初期デッキは、ユーザー提供の `単語データ.xlsx` から生成した `public/vocabulary.json` を使用します。学習履歴はサーバーに送信せず、利用中のブラウザにのみ保存されます。ブラウザのサイトデータを削除すると、学習履歴も消去されます。
+
+単語・訳語を公開配信する場合は、参照した辞書等の利用条件・権利を確認してください。詳細は[Web版設計書](docs/tangodots-web-design.md)を参照してください。

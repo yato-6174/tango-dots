@@ -1,0 +1,34 @@
+import type { Metadata } from "next";
+import { headers } from "next/headers";
+import "./globals.css";
+
+export async function generateMetadata(): Promise<Metadata> {
+  const host = (await headers()).get("host") ?? "tangodots.example.com";
+  const protocol = host.startsWith("localhost") ? "http" : "https";
+  const metadataBase = new URL(`${protocol}://${host}`);
+
+  return {
+    metadataBase,
+    title: "TangoDots | FSRS単語帳",
+    description: "毎日の英単語を、ドットで続けるFSRS単語帳。",
+    openGraph: {
+      title: "TangoDots | FSRS単語帳",
+      description: "毎日の英単語を、ドットで続けるFSRS単語帳。",
+      images: ["/og.png"],
+    },
+    twitter: { card: "summary_large_image" },
+    icons: { icon: "/favicon.svg", shortcut: "/favicon.svg" },
+  };
+}
+
+export default function RootLayout({
+  children,
+}: Readonly<{
+  children: React.ReactNode;
+}>) {
+  return (
+    <html lang="ja">
+      <body>{children}</body>
+    </html>
+  );
+}
