@@ -23,3 +23,9 @@ export const reviewLogs = sqliteTable(
   },
   (table) => [index("idx_review_logs_device_reviewed_at").on(table.deviceId, table.reviewedAt)],
 );
+
+export const userSettings = sqliteTable("user_settings", {
+  deviceId: text("device_id").primaryKey(),
+  dailyNewLimit: integer("daily_new_limit").notNull(),
+  updatedAt: integer("updated_at", { mode: "timestamp_ms" }).notNull(),
+});

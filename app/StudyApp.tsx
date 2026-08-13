@@ -16,7 +16,8 @@ type SerializedCard = Omit<Card, "due" | "last_review"> & {
 type ReviewLog = { cardId: number; reviewedAt: string; rating: Rating };
 
 const DEVICE_ID_KEY = "tangodots.device-id.v1";
-const DAILY_NEW_CARD_LIMIT = 100;
+const DEFAULT_DAILY_NEW_CARD_LIMIT = 50;
+const DAILY_NEW_CARD_LIMITS = Array.from({ length: 19 }, (_, index) => 10 + index * 5);
 const ENCOURAGEMENTS = [
   "千里の道も一歩から。",
   "継続は力なり。",
@@ -76,6 +77,7 @@ export function StudyApp({ mode = "home" }: { mode?: "home" | "study" }) {
   const [saveError, setSaveError] = useState(false);
   const [encouragement, setEncouragement] = useState(ENCOURAGEMENTS[0]);
   const [activeDay, setActiveDay] = useState<string | null>(null);
+  const [dailyNewLimit, setDailyNewLimit] = useState(DEFAULT_DAILY_NEW_CARD_LIMIT);
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -107,7 +109,7 @@ export function StudyApp({ mode = "home" }: { mode?: "home" | "study" }) {
       fetch("/vocabulary.json").then((response) => response.json() as Promise<VocabularySeed[]>),
       fetch("/api/progress", { headers: deviceHeaders(deviceId) }).then((response) => {
         if (!response.ok) throw new Error("progress fetch failed");
-        return response.json() as Promise<{ cards: { card_id: number; scheduler_card_json: string; first_reviewed_at: number | null }[]; history: { card_id: number; rating: Rating; reviewed_at: number }[] }>;
+        return response.json() as Promise<{ cards: { card_id: number; scheduler_card_json: string; first_reviewed_at: number | null }[]; history: { card_id: number; rating: Rating; reviewed_at: number }[]; dailyNewLimit: number }>;
       }),
     ]).then(([seeds, progress]) => {
       const stateByCardId = new Map(progress.cards.map((card) => [card.card_id, {
@@ -116,6 +118,7 @@ export function StudyApp({ mode = "home" }: { mode?: "home" | "study" }) {
       }]));
       setCards(seeds.map((seed) => ({ ...createStoredCard(seed), ...(stateByCardId.get(seed.sourceNumber) ?? {}) })));
       setHistory(progress.history.map((log) => ({ cardId: log.card_id, reviewedAt: new Date(log.reviewed_at).toISOString(), rating: log.rating })));
+      setDailyNewLimit(progress.dailyNewLimit);
       setLoaded(true);
     }).catch(() => {
       setSaveError(true);
@@ -130,7 +133,7 @@ export function StudyApp({ mode = "home" }: { mode?: "home" | "study" }) {
   }, []);
 
   const introducedToday = cards.filter((card) => card.firstReviewedAt !== null && card.firstReviewedAt >= startOfToday).length;
-  const remainingNewSlots = Math.max(0, DAILY_NEW_CARD_LIMIT - introducedToday);
+  const remainingNewSlots = Math.max(0, dailyNewLimit - introducedToday);
 
   const current = useMemo(() => {
     const now = new Date();
@@ -206,6 +209,17 @@ export function StudyApp({ mode = "home" }: { mode?: "home" | "study" }) {
     }).catch(() => setSaveError(true));
   }
 
+  function changeDailyNewLimit(value: number) {
+    setDailyNewLimit(value);
+    fetch("/api/progress", {
+      method: "PUT",
+      headers: { "content-type": "application/json", ...deviceHeaders(getDeviceId()) },
+      body: JSON.stringify({ dailyNewLimit: value }),
+    }).then((response) => {
+      if (!response.ok) setSaveError(true);
+    }).catch(() => setSaveError(true));
+  }
+
   if (!loaded) return <main className="app-shell"><p className="muted">単語を読み込んでいます…</p></main>;
 
   return (
@@ -217,7 +231,7 @@ export function StudyApp({ mode = "home" }: { mode?: "home" | "study" }) {
         <h1 key={encouragement} className="encouragement">{encouragement}</h1>
         <div className="summary-stats" aria-label="今日の学習量">
           <div><span>復習</span><strong>{reviewCount}<small>語</small></strong></div>
-          <div><span>今日の新規</span><strong>{introducedToday}<small> / {DAILY_NEW_CARD_LIMIT}語</small></strong></div>
+          <div><span>今日の新規</span><strong>{introducedToday}<small> / {dailyNewLimit}語</small></strong></div>
         </div>
         <p className="new-remaining">未学習 <strong>{newCount}</strong> 語</p>
       </section>
@@ -246,21 +260,32 @@ export function StudyApp({ mode = "home" }: { mode?: "home" | "study" }) {
       </section>
       <section className="start-card">
         <div className="start-card-copy"><h2>今日のセット</h2><p>{reviewCount > 0 ? `復習 ${reviewCount} 枚を優先して始めましょう。` : `新規の単語をあと ${remainingNewSlots} 個まで学習できます。`}</p>
-          <div className="daily-progress" role="progressbar" aria-label="今日の新規単語の進捗" aria-valuemin={0} aria-valuemax={DAILY_NEW_CARD_LIMIT} aria-valuenow={introducedToday}>
-            <span className="daily-progress-bar" style={{ width: `${(introducedToday / DAILY_NEW_CARD_LIMIT) * 100}%` }} />
+          <label className="daily-limit-control">1日の新規単語
+            <select value={dailyNewLimit} onChange={(event) => changeDailyNewLimit(Number(event.target.value))}>
+              {DAILY_NEW_CARD_LIMITS.map((limit) => <option key={limit} value={limit}>{limit}語</option>)}
+            </select>
+          </label>
+          <div className="daily-progress" role="progressbar" aria-label="今日の新規単語の進捗" aria-valuemin={0} aria-valuemax={dailyNewLimit} aria-valuenow={Math.min(introducedToday, dailyNewLimit)}>
+            <span className="daily-progress-bar" style={{ width: `${Math.min(100, (introducedToday / dailyNewLimit) * 100)}%` }} />
           </div>
-          <small>{introducedToday} / {DAILY_NEW_CARD_LIMIT} 個</small>
+          <small>{introducedToday} / {dailyNewLimit} 個</small>
         </div>
         <a className="start-button" href="/study">学習をはじめる</a>
       </section>
       </>}
+      {mode === "study" && <section className="study-progress" aria-label="今日の学習進捗">
+        <div><span>今日の進捗</span><strong>{todayCompletedCount} / {todaySetCount} 語</strong></div>
+        <div className="study-progress-track" role="progressbar" aria-label="今日の学習の進捗" aria-valuemin={0} aria-valuemax={todaySetCount} aria-valuenow={todayCompletedCount}>
+          <span style={{ width: `${todaySetCount === 0 ? 100 : Math.min(100, (todayCompletedCount / todaySetCount) * 100)}%` }} />
+        </div>
+      </section>}
       {mode === "study" && (current ? <section className="study-card" aria-live="polite">
         <div className="card-meta">{currentPosition} / {todaySetCount}</div>
         <p className="word">{current.front}</p>
         {revealed ? <><p className="meaning">{current.back}</p><div className="rating-grid">
           {[Rating.Again, Rating.Hard, Rating.Good, Rating.Easy].map((rating) => <button className={`rating rating-${rating}`} key={rating} onClick={() => answer(rating)}>{ratingLabels[rating]}</button>)}
         </div></> : <button className="reveal" onClick={() => setRevealed(true)}>答えを見る</button>}
-      </section> : <section className="complete"><h2>今日の学習は完了です</h2><p>{reviewCount > 0 ? "復習を完了してください。" : `今日の新規 ${DAILY_NEW_CARD_LIMIT} 枚を完了しました。また明日。`}</p><a className="back-link complete-link" href="/">記録を見る</a></section>)}
+      </section> : <section className="complete"><h2>今日の学習は完了です</h2><p>{reviewCount > 0 ? "復習を完了してください。" : `今日の新規 ${dailyNewLimit} 語を完了しました。また明日。`}</p><a className="back-link complete-link" href="/">記録を見る</a></section>)}
       {mode === "home" && <>
         <p className="privacy">学習履歴はCloudflare D1に保存されます。{saveError ? " 保存に失敗しました。ページを再読み込みして再試行してください。" : ""}</p>
         <footer className="site-footer">© 2026 Kade_6174. All rights reserved.</footer>

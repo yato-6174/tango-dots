@@ -30,7 +30,7 @@ export default function AboutPage() {
     </section>
     <section className="about-section">
       <h2>なぜ続けやすいのか</h2>
-      <p>新規単語は1日100語までに抑え、まず期限が来た復習を出します。一度に大量の単語へ取り組むより、日々の負担を一定にしやすい設計です。</p>
+      <p>新規単語数は、初期設定の50語から10〜100語まで5語刻みで選べます。まず期限が来た復習を出すため、一度に大量の単語へ取り組むより、日々の負担を一定にしやすい設計です。</p>
     </section>
     <section className="about-section">
       <h2>FSRSによる復習</h2>

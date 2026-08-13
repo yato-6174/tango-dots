@@ -3,6 +3,8 @@ import { env } from "cloudflare:workers";
 const DEVICE_ID_HEADER = "x-tangodots-device-id";
 const VALID_DEVICE_ID = /^[a-zA-Z0-9-]{16,80}$/;
 const VALID_RATINGS = new Set([1, 2, 3, 4]);
+const VALID_DAILY_NEW_LIMITS = new Set(Array.from({ length: 19 }, (_, index) => 10 + index * 5));
+const DEFAULT_DAILY_NEW_LIMIT = 50;
 
 function deviceIdFrom(request: Request) {
   const deviceId = request.headers.get(DEVICE_ID_HEADER) ?? "";
@@ -14,16 +16,36 @@ export async function GET(request: Request) {
   if (!deviceId) return Response.json({ error: "無効な端末識別子です。" }, { status: 400 });
 
   const from = Date.now() - 91 * 24 * 60 * 60 * 1000;
-  const [cardStates, reviewLogs] = await env.DB.batch([
+  const [cardStates, reviewLogs, settings] = await env.DB.batch([
     env.DB.prepare(
       "SELECT card_id, scheduler_card_json, first_reviewed_at FROM user_card_states WHERE device_id = ?",
     ).bind(deviceId),
     env.DB.prepare(
       "SELECT card_id, rating, reviewed_at FROM review_logs WHERE device_id = ? AND reviewed_at >= ? ORDER BY reviewed_at ASC",
     ).bind(deviceId, from),
+    env.DB.prepare(
+      "SELECT daily_new_limit FROM user_settings WHERE device_id = ?",
+    ).bind(deviceId),
   ]);
 
-  return Response.json({ cards: cardStates.results, history: reviewLogs.results });
+  const setting = settings.results[0] as { daily_new_limit?: number } | undefined;
+  return Response.json({ cards: cardStates.results, history: reviewLogs.results, dailyNewLimit: setting?.daily_new_limit ?? DEFAULT_DAILY_NEW_LIMIT });
+}
+
+export async function PUT(request: Request) {
+  const deviceId = deviceIdFrom(request);
+  if (!deviceId) return Response.json({ error: "無効な端末識別子です。" }, { status: 400 });
+
+  const payload = await request.json() as { dailyNewLimit?: number };
+  if (!VALID_DAILY_NEW_LIMITS.has(payload.dailyNewLimit ?? 0)) {
+    return Response.json({ error: "1日の新規単語数は10〜100語を5語刻みで指定してください。" }, { status: 400 });
+  }
+
+  await env.DB.prepare(
+    "INSERT INTO user_settings (device_id, daily_new_limit, updated_at) VALUES (?, ?, ?) ON CONFLICT(device_id) DO UPDATE SET daily_new_limit = excluded.daily_new_limit, updated_at = excluded.updated_at",
+  ).bind(deviceId, payload.dailyNewLimit, Date.now()).run();
+
+  return Response.json({ ok: true, dailyNewLimit: payload.dailyNewLimit });
 }
 
 export async function POST(request: Request) {
