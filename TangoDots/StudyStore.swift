@@ -6,19 +6,30 @@ final class StudyStore {
     var deckName: String
     var dueReviews: Int
     var newCards: Int
+    var cardCount: Int
     var activity: [DailyActivity]
 
-    init(deckName: String, dueReviews: Int, newCards: Int, activity: [DailyActivity]) {
+    init(deckName: String, dueReviews: Int, newCards: Int, cardCount: Int, activity: [DailyActivity]) {
         self.deckName = deckName
         self.dueReviews = dueReviews
         self.newCards = newCards
+        self.cardCount = cardCount
         self.activity = activity
     }
+
+    static let initial = StudyStore(
+        deckName: "英単語",
+        dueReviews: 0,
+        newCards: min(VocabularySeed.load().count, 20),
+        cardCount: VocabularySeed.load().count,
+        activity: []
+    )
 
     static let preview = StudyStore(
         deckName: "英単語",
         dueReviews: 12,
         newCards: 8,
+        cardCount: 2_300,
         activity: DailyActivity.preview
     )
 }
@@ -48,4 +59,3 @@ struct DailyActivity: Identifiable, Hashable {
         }
     }()
 }
-

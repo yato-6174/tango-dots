@@ -18,4 +18,4 @@
 
 ## コンテンツについて
 
-LEAP関連の単語・訳語データは、このリポジトリに含めていません。App Storeで配信する教材には、掲載元および権利者から必要な許諾を得る必要があります。詳細は [設計書](outputs/anki-fsrs-iphone-design.md) を参照してください。
+初期デッキは、ユーザー提供の `単語データ.xlsx` から生成した `TangoDots/Resources/vocabulary.json` を使用します。元のExcelファイルはリポジトリへ含めません。App Storeで配信する教材には、単語・訳語の作成に利用した辞書などについて必要な利用許諾を確認してください。詳細は [設計書](outputs/anki-fsrs-iphone-design.md) を参照してください。

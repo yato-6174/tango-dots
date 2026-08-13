@@ -36,7 +36,7 @@ struct HomeView: View {
         VStack(alignment: .leading, spacing: 8) {
             Text(store.deckName)
                 .font(.headline)
-            Text("復習 \(store.dueReviews) ・ 新規 \(store.newCards)")
+            Text("復習 \(store.dueReviews) ・ 新規 \(store.newCards) ・ 収録 \(store.cardCount)")
                 .font(.subheadline)
                 .foregroundStyle(.secondary)
         }
@@ -49,4 +49,3 @@ struct HomeView: View {
 #Preview {
     HomeView(store: .preview)
 }
-

@@ -2,7 +2,7 @@ import SwiftUI
 
 @main
 struct TangoDotsApp: App {
-    @State private var store = StudyStore.preview
+    @State private var store = StudyStore.initial
 
     var body: some Scene {
         WindowGroup {
@@ -10,4 +10,3 @@ struct TangoDotsApp: App {
         }
     }
 }
-
