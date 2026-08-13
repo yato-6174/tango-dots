@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import { StudyApp } from "./StudyApp";
 
 export const metadata: Metadata = {
-  title: "TangoDots | FSRS単語帳",
-  description: "毎日の英単語を、ドットで続けるFSRS単語帳。",
+  title: "TangoDots | 毎日続く英単語帳",
+  description: "1日100語から、復習を優先して続ける英単語帳。",
 };
 
 export default function Home() {

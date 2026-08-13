@@ -9,11 +9,11 @@ export async function generateMetadata(): Promise<Metadata> {
 
   return {
     metadataBase,
-    title: "TangoDots | FSRS単語帳",
-    description: "毎日の英単語を、ドットで続けるFSRS単語帳。",
+    title: "TangoDots | 毎日続く英単語帳",
+    description: "1日100語から、復習を優先して続ける英単語帳。",
     openGraph: {
-      title: "TangoDots | FSRS単語帳",
-      description: "毎日の英単語を、ドットで続けるFSRS単語帳。",
+      title: "TangoDots | 毎日続く英単語帳",
+      description: "1日100語から、復習を優先して続ける英単語帳。",
       images: ["/og.png"],
     },
     twitter: { card: "summary_large_image" },
