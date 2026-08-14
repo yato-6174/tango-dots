@@ -39,7 +39,7 @@ const scheduler = fsrs({
 const ratingLabels: Record<Rating, string> = {
   [Rating.Again]: "もう一度",
   [Rating.Hard]: "難しい",
-  [Rating.Good]: "良い",
+  [Rating.Good]: "ふつう",
   [Rating.Easy]: "かんたん",
 };
 
